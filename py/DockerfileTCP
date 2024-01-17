@@ -1,0 +1,48 @@
+# Stage 1: Kernel source stage
+FROM docker/for-desktop-kernel:5.15.49-pr-865cda400dbf95b8b90be9bbfdceef3bcffe1e2c as ksrc
+# FROM docker/for-desktop-kernel:6.4.16-linuxkit as ksrc
+
+# Use a base image with the required dependencies
+FROM ubuntu:latest
+
+COPY --from=ksrc /kernel-dev.tar /
+RUN tar xf kernel-dev.tar && rm kernel-dev.tar
+
+# Install necessary packages for BPF compilation
+RUN apt-get update && apt-get install -y \
+    clang \
+    llvm \
+    libbpf-dev \
+    python3 \
+    python3-pip \
+    linux-headers-generic \
+    build-essential \
+    linux-tools-common \
+    linux-tools-generic \
+    python3-bpfcc \
+    bpfcc-tools \
+    libelf-dev \
+    kmod 
+
+
+
+# Install Python dependencies
+RUN pip3 install kafka-python networkx matplotlib
+
+# Install bcc Python bindings
+RUN pip install bcc pytest nano
+ 
+# Copy the eBPF program source code
+COPY tcp_trace.c /app/tcp_trace.c
+
+# Copy Python scripts
+COPY tcp_events.py /app
+COPY mtk.sh /app/mtk.sh
+RUN chmod +x /app/mtk.sh
+COPY custom_visualization.py /app/custom_visualization.py
+COPY data_processing_tcp.py /app/data_processing_tcp.py
+
+# Set the working directory
+WORKDIR /app
+
+CMD mount -t debugfs debugfs /sys/kernel/debug && /bin/bash
