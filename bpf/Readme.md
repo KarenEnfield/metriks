@@ -1,23 +1,43 @@
-# eBPF TCP Collector for Docker, with Kafka
+# Metriks Data Processor
 
-Collects TCP-related events using eBPF kernel procesing in Docker and prints to userspace, with event data sent to by a producer to Kafka
+Data processor monitors TCP activity, and informs userspace and Kafka of event data 
  
-## Option 1: eBPF tcp events & data processing, sent by Kafka Producer
+## Installation (Default)
 
-    Install Kafka on Docker (See /kafka/Readme.md)
+    - Prerequisites 
+    
+        Install and run Kafka and Zookeeper containers on Docker (See /kafka/Readme.md)
 
-    Build the image with data processing for Kafka 
-        % docker build -t ebpf-tcp-events -f Dockerfile .
+    - Build the data processor Docker Image
+        
+        Go to the /bpf subfolder
 
-    Run the container
-        % docker run -it --rm --privileged -v /lib/modules:/lib/modules:ro -v /etc/localtime:/etc/localtime:ro --pid=host --name procesor-container ebpf-tcp-events
+        Build the data processor Docker image
+
+            % docker build -t data-processor -f Dockerfile .
+
+    - Install and run the Metriks Data Processor
+
+        Start a data processor Docker container
+            % docker run -it --rm --privileged -v /lib/modules:/lib/modules:ro -v /etc/localtime:/etc/localtime:ro --pid=host --name procesor-container data-processor
+
+        Run the data processor python script
+            % ./dp.sh
+            or 
+            % python3 data-processor.py
 
 
-## Option 2: eBPF tcp events, no Kafka
+## Option 2: Install reporting to userspace only, no Kafka
 
-    Build the image with event handling only (no event data sent to Kafka)
-        % docker build -t ebpf-tcp-events -f DockerfileEH .
+    - Prerequisites (none)
 
-    Run the container 
-        (same docker run command as in Option 1)  
+        SKIP Kafka and Zookeeper install steps
+
+    - Build the event-handling-only data processor Docker image (no data will be sent to Kafka)
+
+        % docker build -t data-processor -f DockerfileEH .
+
+    - Install and run the Metriks Data Processor.
+
+        Same Install and run steps as above  
               
