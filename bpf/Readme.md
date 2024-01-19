@@ -1,6 +1,6 @@
 # Metriks Data Processor
 
-Data processor monitors TCP activity, and informs userspace and Kafka of event data 
+Data processor monitors TCP activity, and informs userspace and Kafka 
  
 ## Installation (Default)
 
