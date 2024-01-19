@@ -1,9 +1,14 @@
 # metriks
 
-EBPF metrics collector 
+Metriks observability program for tcp-related activity on a server
 
-eBPF linux kernel observability for Docker Desktop on macOS
+Observe TCP-related activity obtained through eBPF linux kernel filtering.
+Linux kernel observations are from Docker containers on MacOS.
 
-Python version recommended
-    see README.md in /py
+TCP observations are streamed as data to Kafka, also running in a Docker container on macOS
 
+## Install Data processor / eBPF collector and Kafka processor data send
+[Link to BPF README](./bpf/readme.md)
+
+## Kafka Prerequisite (with Zookeeper)
+[Link to Kafka README](./kafka/readme.md)
