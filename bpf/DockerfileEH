@@ -1,4 +1,5 @@
 # Stage 1: Kernel source stage
+# Kernel version is needed for docker
 FROM docker/for-desktop-kernel:5.15.49-pr-865cda400dbf95b8b90be9bbfdceef3bcffe1e2c as ksrc
 # FROM docker/for-desktop-kernel:6.4.16-linuxkit as ksrc
 
@@ -24,23 +25,17 @@ RUN apt-get update && apt-get install -y \
     libelf-dev \
     kmod 
 
-
-
-# Install Python dependencies
-RUN pip3 install kafka-python networkx matplotlib
-
 # Install bcc Python bindings
-RUN pip install bcc pytest nano
- 
-# Copy the eBPF program source code
-COPY tcp_trace.c /app/tcp_trace.c
+RUN pip install bcc pytest 
 
-# Copy Python scripts
-COPY tcp_events.py /app
-COPY mtk.sh /app/mtk.sh
-RUN chmod +x /app/mtk.sh
-COPY custom_visualization.py /app/custom_visualization.py
-COPY data_processing_tcp.py /app/data_processing_tcp.py
+# Install utility
+RUN pip install nano
+
+# Copy Python scripts epbf tcp events logged to userspace, no kafka
+COPY tcp_events.py /app/data_processing.py
+COPY tcp_events.c /app/tcp_events.c
+COPY dp.sh /app/dp.sh
+RUN chmod +x /app/dp.sh
 
 # Set the working directory
 WORKDIR /app
