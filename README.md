@@ -7,8 +7,8 @@ Linux kernel observations are from Docker containers on MacOS.
 
 TCP observations are streamed as data to Kafka, also running in a Docker container on macOS
 
-## Install Data processor / eBPF collector and Kafka processor data send
-[Link to BPF README](./bpf/readme.md)
+## Install Data processor / eBPF collector w/ data send to Kafka
+[Link to BPF README](./bpf/Readme.md)
 
 ## Kafka Prerequisite (with Zookeeper)
-[Link to Kafka README](./kafka/readme.md)
+[Link to Kafka README](./kafka/Readme.md)

@@ -1,7 +1,7 @@
 # eBPF TCP Collector for Docker, with Kafka
 
 Collects TCP-related events using eBPF kernel procesing in Docker and prints to userspace, with event data sent to by a producer to Kafka
-
+ 
 ## Option 1: eBPF tcp events & data processing, sent by Kafka Producer
 
     Install Kafka on Docker (See /kafka/Readme.md)
