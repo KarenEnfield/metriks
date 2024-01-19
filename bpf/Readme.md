@@ -27,7 +27,7 @@ Data processor monitors TCP activity, and informs userspace and Kafka of event d
             % python3 data-processor.py
 
 
-## Option 2: Install reporting to userspace only, no Kafka
+## Option 2: Data to Userspace only, no Kafka
 
     - Prerequisites (none)
 
