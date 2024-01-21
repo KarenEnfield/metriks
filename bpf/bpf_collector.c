@@ -6,7 +6,7 @@
 
 
 enum {
-    TCP_SENDMSG,
+    TCP_SENDMSG =1 ,
     TCP_RECVMSG
 } tcp_kernel;
 
@@ -65,7 +65,7 @@ int trace_tcp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
     };  
 
     // Send the data to user space
-    events.perf_submit(ctx, &data, sizeof(data));
+    events.perf_submit(ctx, &data, sizeof(struct event_data_t));
 
     return 0;
 }
@@ -97,8 +97,8 @@ int trace_tcp_recvmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
     };  
 
     // Send the data to user space
-    events.perf_submit(ctx, &data, sizeof(data));
-    
+    events.perf_submit(ctx, &data, sizeof(struct event_data_t));
+
     return 0;
 }
 

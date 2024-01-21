@@ -2,7 +2,7 @@
 
 from bcc import BPF
 
-bpf = BPF(src_file="tcp_events.c")
+bpf = BPF(src_file="bpf_collector.c")
 
 bpf.attach_kprobe(event="tcp_sendmsg", fn_name="trace_tcp_sendmsg")
 bpf.attach_kprobe(event="tcp_recvmsg", fn_name="trace_tcp_recvmsg")

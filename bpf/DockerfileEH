@@ -28,12 +28,9 @@ RUN apt-get update && apt-get install -y \
 # Install bcc Python bindings
 RUN pip install bcc pytest 
 
-# Install utility
-RUN pip install nano
-
 # Copy Python scripts epbf tcp events logged to userspace, no kafka
-COPY tcp_events.py /app/data_processing.py
-COPY tcp_events.c /app/tcp_events.c
+COPY console_display.py /app/data_producer.py
+COPY bpf_collector.c /app/bpf_collector.c
 COPY dp.sh /app/dp.sh
 RUN chmod +x /app/dp.sh
 

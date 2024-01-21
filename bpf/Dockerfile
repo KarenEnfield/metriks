@@ -4,6 +4,7 @@ FROM docker/for-desktop-kernel:5.15.49-pr-865cda400dbf95b8b90be9bbfdceef3bcffe1e
 
 # Use a base image with the required dependencies
 FROM ubuntu:latest
+# FROM python:3.8-slim
 
 COPY --from=ksrc /kernel-dev.tar /
 RUN tar xf kernel-dev.tar && rm kernel-dev.tar
@@ -22,24 +23,25 @@ RUN apt-get update && apt-get install -y \
     python3-bpfcc \
     bpfcc-tools \
     libelf-dev \
+    openjdk-11-jdk\
+    netcat \ 
+    telnet \
+    iputils-ping \
     kmod 
 
 # Install Python dependencies
-RUN pip3 install kafka-python networkx matplotlib
+RUN pip3 install kafka-python
 
 # Install bcc Python bindings
-RUN pip install bcc pytest 
-
-# Install utility
-RUN pip install nano
+RUN pip3 install bcc pytest 
 
 # Copy Python scripts
-# epbf data processing of tcp events logged to userspace, event data sent to kafka
-COPY data_processing.py /app/data_processing.py
-# ebpf tcp events logged to userspace, no kafka
-COPY tcp_events.py /app/tcp_events.py
-# common ebpf tcp event probes used by both scripts
-COPY tcp_events.c /app/tcp_events.c
+# kafka producer of ebpf data
+COPY data_producer.py /app/data_producer.py
+# ebpf data logged to console, no kafka
+COPY console_display.py /app/console_display.py
+# common ebpf event collection, used by both scripts
+COPY bpf_collector.c /app/bpf_collector.c
 # shell script to run the python data processing script (uses Kafka Producer)
 COPY dp.sh /app/dp.sh
 RUN chmod +x /app/dp.sh
