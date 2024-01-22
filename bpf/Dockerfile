@@ -9,6 +9,9 @@ FROM ubuntu:latest
 COPY --from=ksrc /kernel-dev.tar /
 RUN tar xf kernel-dev.tar && rm kernel-dev.tar
 
+# No Kafka data production, only console output if this is uncommented
+# ENV CONSOLE_NO_KAFKA
+
 # Install necessary packages for BPF compilation
 RUN apt-get update && apt-get install -y \
     clang \
@@ -38,13 +41,14 @@ RUN pip3 install bcc pytest
 # Copy Python scripts
 # kafka producer of ebpf data
 COPY data_producer.py /app/data_producer.py
-# ebpf data logged to console, no kafka
+# ebpf data logged to console, no kafka 
 COPY console_display.py /app/console_display.py
 # common ebpf event collection, used by both scripts
 COPY bpf_collector.c /app/bpf_collector.c
+COPY producer_settings.ini /app/producer_settings.ini
 # shell script to run the python data processing script (uses Kafka Producer)
-COPY dp.sh /app/dp.sh
-RUN chmod +x /app/dp.sh
+COPY dp.sh /app/run.sh
+RUN chmod +x /app/run.sh
 
 # Set the working directory
 WORKDIR /app

@@ -22,7 +22,7 @@ Data producer uses ebpf kernel probing and prints network data to console or sen
             % docker run -it --rm --privileged -v /lib/modules:/lib/modules:ro -v /etc/localtime:/etc/localtime:ro --pid=host --name producer-mtk --link kafka-container producer-image-mtk 
 
         Run the data producer python script
-            % ./dp.sh
+            % ./run.sh
             or 
             % python3 data_producer.py
 
@@ -33,19 +33,29 @@ Data producer uses ebpf kernel probing and prints network data to console or sen
         Make sure kafka-continer:9092 is found 
         # wget -O- kafka-container:9092
 
-## Option 2: Console mode, no Kafka
+## Option 2: Console mode install, no Kafka prerequisite
 
     - Prerequisites (none)
 
-        SKIP Kafka and Zookeeper install steps
+        You may SKIP Kafka and Zookeeper install steps
 
     - Build the event-handling-only data processor Docker image (no data will be sent to Kafka)
 
         % docker build -t producer-image-mtk -f DockerfileEH .
 
+
     - Install and run the Metriks Data Processor.
 
-        Same Install and run steps as above  
+        Same Install and run steps as above 
+
+## Option 3: Console mode/ No Kafka as Environment setting 
+    
+    Install with Kafka as above
+    Environment variable "CONSOLE_NO_KAFKA" if defined, overrides system configuration settings
+    If not explicitly set to True, it defaults to False
+      
+
+        
 
             
               

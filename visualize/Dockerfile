@@ -26,11 +26,13 @@ RUN pip3 install matplotlib
 
 # Copy Python scripts
 # epbf data processing of tcp events logged to userspace, event data sent to kafka
-COPY custom_visualization.py /app/visualize.py
+COPY tcp_connections_visualizer.py /app/visualize.py
 COPY test.py /app/test.py
 COPY plot.py /app/plot.py
-COPY vz.sh /app/vz.sh
-RUN chmod +x /app/vz.sh
+COPY vz.sh /app/run.sh
+RUN chmod +x /app/run.sh
 
-
+# Cant save the image if it automatically closes!
 # CMD ["python3", "visualize.py"]
+
+

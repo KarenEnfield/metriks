@@ -7,33 +7,85 @@ from ctypes import cast, Structure, POINTER, c_uint, c_ushort, c_ulonglong
 import json
 import signal
 from kafka import __version__ as kafka_python_version
+import os
+import configparser
 
-# Function to handle SIGINT (Ctrl-C)
+#
+# Configuration setup
+#
+producer_settings_ini = 'producer_settings.ini'
+config_file = configparser.ConfigParser()
+config_file.read(producer_settings_ini)
+
+# Defining this environment variable will override for console mode, no kafka
+env_console_no_kafka = "CONSOLE_NO_KAFKA"
+# Retrieve values from 'Settings' section
+settings = {}
+if env_console_no_kafka in os.environ: # env variable exists, override defaults; defaults to False
+    env_value_str = os.environ.get(env_console_no_kafka, 'False')
+    env_value_bool = env_value_str.lower() == 'true'
+    settings['console_no_kafka'] = env_value_bool
+elif 'Settings' in config_file:
+    settings['console_no_kafka'] = config_file['Settings'].getboolean('console_no_kafka', fallback=False)
+else:
+    settings['console_no_kafka'] = False
+
+# Retrieve process names and probe names from 'EventFilters' section
+# 
+process_names = []
+probe_names = []
+
+if 'EventFilters' in config_file:
+    process_names = [value.strip() for value in config_file['EventFilters'].get('process_names', '').split('\n') if value.strip()]
+    probe_names = [value.strip() for value in config_file['EventFilters'].get('probe_names', '').split('\n') if value.strip()]
+
+
+
+# Signal Interrupt handling- SIGINT (Ctrl-C)
 def sigint_handler(signal, frame):
     global exit_flag
     exit_flag = True
     print("\nSIGINT received! Exit")
     exit(1)
 
-
-
 # Set the SIGINT handler
 signal.signal(signal.SIGINT, sigint_handler)
 
-# Specify Kafka servers and api
-kafka_bootstrap_servers = 'localhost:9092'
-desired_api_version = (0, 11)
-# Specify Kafka topic and key
-kafka_topic = 'tcp-events'
-
-kafka_key = None  # Add a key if needed
+# 
+# BPF Probe setup
+# 
 bpf_collector_c = 'bpf_collector.c'
 
+# Load BPF program
+bpf = BPF(src_file=bpf_collector_c)
+events = bpf["events"]
+
+# Attach to bpf events to probe
+# TBA Probe filtering ...
+bpf.attach_kprobe(event="tcp_sendmsg", fn_name="trace_tcp_sendmsg")
+bpf.attach_kprobe(event="tcp_recvmsg", fn_name="trace_tcp_recvmsg")
+
+# Check environment variable determine if console output is desired 
+# instead of kafka sends for 
+# bpf event reporting. 
+# bpf.trace_print prevents bpf event poll handler from executing.
+if settings['console_no_kafka'] is True:
+    bpf.trace_print()
+
+
+#
+# Kafka Communication Setup
+#
+    
+# Define Kafka server, api, and data topic for probe data sends
+kafka_bootstrap_servers = 'kafka-container:9092'
+desired_api_version = (0, 11)
+kafka_topic = 'tcp-events'
 
 # Initialize Kafka producer
 try:
     producer = KafkaProducer(
-        bootstrap_servers=['kafka-container:9092'],
+        bootstrap_servers=[kafka_bootstrap_servers],
         api_version=desired_api_version
     )
     
@@ -43,6 +95,9 @@ except Exception as e:
     print(f"Failed to connect to Kafka ({kafka_python_version}) {e}")
     exit(1)
 
+#
+#   Data Producing / BPF Event handling
+#
 class EventData(Structure):
     _fields_ = [('src_ip', c_uint),
                 ('dest_ip', c_uint),
@@ -53,10 +108,7 @@ class EventData(Structure):
                 ('timestamp', c_ulonglong)]
 
 
-# Load BPF program
-bpf = BPF(src_file=bpf_collector_c)
-events = bpf["events"]
-
+# Kafka output from bpf event probes
 def handle_event(cpu, event_data, size):
     global exit_flag
     if exit_flag==True:
@@ -65,6 +117,7 @@ def handle_event(cpu, event_data, size):
     # Process bpf collector event from userspace 
     e_data = cast(event_data, POINTER(EventData)).contents
     
+    # TBA Process name filtering ...
     # Serialize the entire event structure to JSON (for example)
     event_json = {
         'src_ip': e_data.src_ip,
@@ -91,17 +144,7 @@ def handle_event(cpu, event_data, size):
         print(f"Error on kafka producer send {err=}, {type(err)=}")
         exit_flag = True
 
-            
-
-bpf.attach_kprobe(event="tcp_sendmsg", fn_name="trace_tcp_sendmsg")
-bpf.attach_kprobe(event="tcp_recvmsg", fn_name="trace_tcp_recvmsg")
-
-# DO NOT PRINT TO CONSOLE! THIS STOPS THE CODE PROGRESSION
-# bpf.trace print CREATES A LOOP THAT PREVENTS 
-# THE SUBSEQUENT POLLING BELOW FOR KAFKA SENDS
-# bpf.trace_print()
-
-# Open perf "events" buffer, loop with callback to handle_event
+# Open bpf perf "events" buffer for and attach callback to handle probed-for events
 bpf["events"].open_perf_buffer(handle_event)
 print("Connected to bpf events")
 
