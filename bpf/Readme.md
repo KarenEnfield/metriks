@@ -1,4 +1,4 @@
-# Metriks Data Producer
+# MetriKs Data Producer
 
 Data producer uses ebpf kernel probing and prints network data to console or sends data to Kafka for consumption
  
@@ -8,7 +8,7 @@ Data producer uses ebpf kernel probing and prints network data to console or sen
     
         Install and run Kafka and Zookeeper containers (See /kafka/Readme.md)
 
-    - Build the Metriks Data Producer Docker Image
+    - Build the MetriKs Data Producer Docker Image
         
         Go to the /bpf subfolder
 
@@ -16,7 +16,7 @@ Data producer uses ebpf kernel probing and prints network data to console or sen
 
             % docker build -t producer-image-mtk .
 
-    - Install and run the Metriks Data Producer
+    - Install and run the MetriKs Data Producer
 
         Start a data producer Docker container
             % docker run -it --rm --privileged -v /lib/modules:/lib/modules:ro -v /etc/localtime:/etc/localtime:ro --pid=host --name producer-mtk --link kafka-container producer-image-mtk 

@@ -1,6 +1,6 @@
-# metriks
+# MetriKs
 
-Metriks observability program for monitoring tcp-related activity
+MetriKs observability program for monitoring tcp-related activity
 
 Data obtained through eBPF linux kernel filtering in a Docker container running on macOS
 

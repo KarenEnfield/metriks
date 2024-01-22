@@ -1,4 +1,4 @@
-# Metrik Visualizer
+# MetriKs Visualizer
 
 Build the visualizer image
     % docker build -t visualizer-image-mtk .

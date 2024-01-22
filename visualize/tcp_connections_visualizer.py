@@ -148,7 +148,7 @@ except KeyboardInterrupt:
 
     # Customize plot
     # Create a figure with a larger canvas
-    plt.title(f"Metriks TCP: {edge_count} connections (IP+port)")
+    plt.title(f"Visualize MetriKs: {edge_count} TCP send/recv endpoints (addr_port)")
     plt.axis('off')
     plt.savefig('vision.png')
     plt.show()
