@@ -146,7 +146,7 @@ def handle_event(cpu, event_data, size):
 
     # Process bpf collector event from userspace 
     e_data = cast(event_data, POINTER(EventData)).contents
-    # comm_str = e_data.comm.decode('utf-8')
+    comm_str = e_data.comm.decode('utf-8')
 
     # TBA Process name filtering ...
     # Serialize the entire event structure to JSON (for example)
@@ -158,21 +158,21 @@ def handle_event(cpu, event_data, size):
         'pid': e_data.pid,
         'func_id': e_data.func_id,
         'timestamp': e_data.timestamp,
-        #'comm' : comm_str,
+        'comm' : comm_str,
         # Add other fields as needed
     }
 
     # see if event comm name is in list of process_name to filter for
-    #if tcp_event_config['comm_filtering'] and comm_str not in tcp_event_config['process_names']:
-    #    print(f"{comm_str} not found in {tcp_event_config['process_names']}")# Produce a message to the specified topic
-    #    return
+    if tcp_event_config['comm_filtering'] and comm_str not in tcp_event_config['process_names']:
+        print(f"{comm_str} not found in {tcp_event_config['process_names']}")# Produce a message to the specified topic
+        return
 
     # Convert the dictionary to a JSON string
     json_data = json.dumps(event_json)
     
     # Process data (e.g., send to Kafka broker / topic)
     try:
-        record_metadata = producer.send(kafka_config.get('topic'), value=json_data.encode('utf-8')).get(timeout=3)
+        producer.send(kafka_config.get('topic'), value=json_data.encode('utf-8')).get(timeout=3)
   
         # Block for 'timeout' seconds and raises an exception if the record is not sent successfully
         # print(f"Message sent to topic {record_metadata.topic} at partition {record_metadata.partition}, offset {record_metadata.offset}")

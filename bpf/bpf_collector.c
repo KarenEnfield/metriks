@@ -33,7 +33,7 @@ struct event_data_t {
     u32 pid;
     u16 func_id;
     u64 timestamp;
-//    char comm[TASK_COMM_LEN];
+    char comm[TASK_COMM_LEN];
 };
 
 // Define the output map for communication with user space
@@ -65,7 +65,7 @@ int trace_tcp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
         .func_id = TCP_SENDMSG,
         .timestamp = bpf_ktime_get_ns(),
     };  
-    // bpf_get_current_comm(&data.comm, sizeof(data.comm));
+    bpf_get_current_comm(&data.comm, sizeof(data.comm));
     
     // Send the data to user space
     events.perf_submit(ctx, &data, sizeof(struct event_data_t));
@@ -99,7 +99,7 @@ int trace_tcp_recvmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
         .timestamp = bpf_ktime_get_ns(),
     };  
 
-    // bpf_get_current_comm(&data.comm, sizeof(data.comm));
+    bpf_get_current_comm(&data.comm, sizeof(data.comm));
 
     // Send the data to user space
     events.perf_submit(ctx, &data, sizeof(struct event_data_t));

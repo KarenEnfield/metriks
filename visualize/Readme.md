@@ -5,7 +5,7 @@
         docker build -t visualizer-image-mtk .
 
 ## Install and run the Visualizer container
-    docker run -it \
+    docker run -it --rm \
         --privileged \
         -v /lib/modules:/lib/modules:ro \
         -v /etc/localtime:/etc/localtime:ro \

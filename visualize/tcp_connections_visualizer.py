@@ -104,7 +104,7 @@ try :
                     # Check if the edge already exists
                     if G.has_edge(src_id, dest_id) is False:
                         # Create a new edge 
-                        G.add_edge(src_id, dest_id)
+                        G.add_edge(src_id, dest_id, comm={comm})
                         edge_count = edge_count + 1
                         
 
@@ -135,8 +135,11 @@ except KeyboardInterrupt:
     # Create a layout for the graph
     pos = nx.circular_layout(G)  # You can use other layout algorithms
 
+    # Set a slightly bigger canvas
+    fig, ax = plt.subplots(figsize=(11, 9))
+
     # Set up the figure
-    fig, ax = plt.subplots()
+    #fig, ax = plt.subplots()
 
     # Draw nodes as small circles
     nx.draw_networkx_nodes(G, pos, node_size=100, node_color='skyblue', alpha=0.6, ax=ax)
@@ -146,6 +149,12 @@ except KeyboardInterrupt:
 
     # Draw labels if needed
     nx.draw_networkx_labels(G, pos, font_size=6, font_color='black', ax=ax)
+
+    # Extract edge labels from the 'comm' attribute
+    edge_labels = {(source, target): edge_attributes['comm'] for source, target, edge_attributes in G.edges(data=True)}
+    # Add edge labels to the plot
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='red', font_size=8)
+
 
     # Customize plot
     # Create a figure with a larger canvas

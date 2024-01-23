@@ -27,8 +27,6 @@ RUN pip3 install matplotlib
 # Copy Python scripts
 # epbf data processing of tcp events logged to userspace, event data sent to kafka
 COPY tcp_connections_visualizer.py /app/visualize.py
-COPY test.py /app/test.py
-COPY plot.py /app/plot.py
 COPY vz.sh /app/run.sh
 RUN chmod +x /app/run.sh
 
