@@ -3,42 +3,72 @@
 # /opt/homebrew/opt/kafka/bin/kafka-server-start /opt/homebrew/etc/kafka/server.properties
 from bcc import BPF
 from kafka import KafkaProducer
-from ctypes import cast, Structure, POINTER, c_uint, c_ushort, c_ulonglong
+from ctypes import cast, Structure, POINTER, c_uint, c_ushort, c_ulonglong, c_char
 import json
 import signal
 from kafka import __version__ as kafka_python_version
 import os
 import configparser
 
-#
-# Configuration setup
-#
-producer_settings_ini = 'producer_settings.ini'
-config_file = configparser.ConfigParser()
-config_file.read(producer_settings_ini)
 
-# Defining this environment variable will override for console mode, no kafka
-env_console_no_kafka = "CONSOLE_NO_KAFKA"
-# Retrieve values from 'Settings' section
-settings = {}
-if env_console_no_kafka in os.environ: # env variable exists, override defaults; defaults to False
-    env_value_str = os.environ.get(env_console_no_kafka, 'False')
-    env_value_bool = env_value_str.lower() == 'true'
-    settings['console_no_kafka'] = env_value_bool
-elif 'Settings' in config_file:
-    settings['console_no_kafka'] = config_file['Settings'].getboolean('console_no_kafka', fallback=False)
-else:
-    settings['console_no_kafka'] = False
+def read_config(config_file='config.ini'):
+    config = configparser.ConfigParser()
+    config.read(config_file)
 
-# Retrieve process names and probe names from 'EventFilters' section
-# 
-process_names = []
-probe_names = []
+    kafka_config = {
+        'bootstrap_servers': os.getenv('KAFKA_BOOTSTRAP_SERVERS', config.get('kafka', 'bootstrap_servers')),
+        'topic': os.getenv('KAFKA_TOPIC', config.get('kafka', 'topic')),
+        'acks': os.getenv('KAFKA_ACKS', config.get('kafka', 'acks')),
+        'api_version': tuple(map(int, os.getenv('KAFKA_API_VERSION', config.get('kafka', 'api_version')).split(','))),
+        # Add more Kafka settings as needed
+    }
+    
+    # Get the process_names from the tcp_event section in the config file
+    process_names_str = config.get('tcp_event', 'process_names', fallback='')
 
-if 'EventFilters' in config_file:
-    process_names = [value.strip() for value in config_file['EventFilters'].get('process_names', '').split('\n') if value.strip()]
-    probe_names = [value.strip() for value in config_file['EventFilters'].get('probe_names', '').split('\n') if value.strip()]
+    # Override with environment variable if provided
+    process_names_env = os.getenv('PROCESS_NAMES_OVERRIDE', '')
+    if process_names_env:
+        process_names_str = process_names_env
 
+    # Convert the comma-separated string to a list, removing any empty strings
+    process_names = [name.strip() for name in process_names_str.split(',') if name.strip()]
+
+    # Set a boolean based on whether the list is empty or not
+    process_names_empty = all(name == "''" for name in process_names)
+
+    # Print the boolean value and the final list of process_names
+    print(f'Is process_names empty? {process_names_empty}')
+    print(f'Final process_names: {process_names}')
+
+    # Create the tcp_event_config dictionary
+    tcp_event_config = {
+        'comm_filtering': not process_names_empty,
+        'process_names': process_names,
+        # Add more TCP event settings as needed
+    }    
+
+    # Read the 'enabled' value from the INI file and use the default of True
+    data_streaming_config = {
+        'enabled': os.getenv('DATA_STREAMING_ENABLED', config.getboolean('data_streaming', 'enabled', fallback=True)),
+        # Add more data_streaming settings as needed
+    }
+    
+    if tcp_event_config.get('comm_filtering') is True :
+        print(f"Comm Filter: {tcp_event_config.get('comm_filtering')} on Names: {tcp_event_config.get('process_names')}, Data Stream: {data_streaming_config.get('enabled')}")
+
+    return kafka_config, tcp_event_config, data_streaming_config
+
+def create_kafka_producer(kafka_config):
+    producer_config = {
+        'bootstrap_servers': kafka_config['bootstrap_servers'],
+        'acks': kafka_config['acks'],
+        'api_version': kafka_config['api_version'],
+        # Add more Kafka producer settings as needed
+    }
+
+    producer = KafkaProducer(**producer_config)
+    return producer
 
 
 # Signal Interrupt handling- SIGINT (Ctrl-C)
@@ -50,6 +80,12 @@ def sigint_handler(signal, frame):
 
 # Set the SIGINT handler
 signal.signal(signal.SIGINT, sigint_handler)
+
+#
+# Configuration setup from ini file/environment variables
+#
+# Read Kafka, TCP event, and data_streaming configuration from the config file
+kafka_config, tcp_event_config, data_streaming_config = read_config()
 
 # 
 # BPF Probe setup
@@ -65,58 +101,53 @@ events = bpf["events"]
 bpf.attach_kprobe(event="tcp_sendmsg", fn_name="trace_tcp_sendmsg")
 bpf.attach_kprobe(event="tcp_recvmsg", fn_name="trace_tcp_recvmsg")
 
+
 # Check environment variable determine if console output is desired 
 # instead of kafka sends for 
 # bpf event reporting. 
 # bpf.trace_print prevents bpf event poll handler from executing.
-if settings['console_no_kafka'] is True:
+if data_streaming_config['enabled'] is False:
+    print("Print to console.  Data streaming is off")
     bpf.trace_print()
-
-
-#
-# Kafka Communication Setup
-#
-    
-# Define Kafka server, api, and data topic for probe data sends
-kafka_bootstrap_servers = 'kafka-container:9092'
-desired_api_version = (0, 11)
-kafka_topic = 'tcp-events'
-
+   
 # Initialize Kafka producer
 try:
-    producer = KafkaProducer(
-        bootstrap_servers=[kafka_bootstrap_servers],
-        api_version=desired_api_version
-    )
-    
+    # Create Kafka producer
+    producer = create_kafka_producer(kafka_config)
+    # Producer success message
     print(f"Kafka producer connected (Kafka python version {kafka_python_version} at {producer.config['bootstrap_servers']})")
 
 except Exception as e:
-    print(f"Failed to connect to Kafka ({kafka_python_version}) {e}")
+    print(f"Failed to create Kafka Producer: ({kafka_python_version}) {e}")
     exit(1)
 
 #
 #   Data Producing / BPF Event handling
 #
-class EventData(Structure):
-    _fields_ = [('src_ip', c_uint),
-                ('dest_ip', c_uint),
-                ('src_port', c_ushort),
-                ('dest_port', c_ushort),
-                ('pid', c_uint),
-                ('func_id', c_ushort),
-                ('timestamp', c_ulonglong)]
+TASK_COMM_LEN = 16  # Assuming the TASK_COMM_LEN value
 
+class EventData(Structure):
+    _fields_ = [
+        ('src_ip', c_uint),
+        ('dest_ip', c_uint),
+        ('src_port', c_ushort),
+        ('dest_port', c_ushort),
+        ('pid', c_uint),
+        ('func_id', c_ushort),
+        ('timestamp', c_ulonglong),
+        ('comm', c_char * TASK_COMM_LEN)  # Add the 'comm' field
+    ]
 
 # Kafka output from bpf event probes
 def handle_event(cpu, event_data, size):
     global exit_flag
     if exit_flag==True:
         return
-    
+
     # Process bpf collector event from userspace 
     e_data = cast(event_data, POINTER(EventData)).contents
-    
+    # comm_str = e_data.comm.decode('utf-8')
+
     # TBA Process name filtering ...
     # Serialize the entire event structure to JSON (for example)
     event_json = {
@@ -127,18 +158,24 @@ def handle_event(cpu, event_data, size):
         'pid': e_data.pid,
         'func_id': e_data.func_id,
         'timestamp': e_data.timestamp,
+        #'comm' : comm_str,
         # Add other fields as needed
     }
-    
+
+    # see if event comm name is in list of process_name to filter for
+    #if tcp_event_config['comm_filtering'] and comm_str not in tcp_event_config['process_names']:
+    #    print(f"{comm_str} not found in {tcp_event_config['process_names']}")# Produce a message to the specified topic
+    #    return
+
     # Convert the dictionary to a JSON string
     json_data = json.dumps(event_json)
     
     # Process data (e.g., send to Kafka broker / topic)
     try:
-        record_metadata = producer.send(kafka_topic, value=json_data.encode('utf-8')).get(timeout=3)
+        record_metadata = producer.send(kafka_config.get('topic'), value=json_data.encode('utf-8')).get(timeout=3)
   
         # Block for 'timeout' seconds and raises an exception if the record is not sent successfully
-        print(f"Message sent to topic {record_metadata.topic} at partition {record_metadata.partition}, offset {record_metadata.offset}")
+        # print(f"Message sent to topic {record_metadata.topic} at partition {record_metadata.partition}, offset {record_metadata.offset}")
     
     except Exception as err:
         print(f"Error on kafka producer send {err=}, {type(err)=}")

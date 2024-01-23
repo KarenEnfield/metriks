@@ -85,6 +85,7 @@ try :
                     pid = data.get('pid')
                     func_id = data.get('func_id')
                     timestamp = data.get('timestamp')
+                    comm = data.get('comm')
 
                     # Concatenate values to create a unique edge identifier
                     edge_identifier = f"{src_ip}_{src_port}_{dest_ip}_{dest_port}"
@@ -119,7 +120,7 @@ try :
                         G.add_node(dest_id)     
                     G.nodes[dest_id]['timestamp'] = timestamp
 
-                    print(f'Src IP: {src_ip}, Dest IP: {dest_ip}, Src Port: {src_port}, Dest Port: {dest_port}, PID: {pid}, Func ID: {func_id}, Timestamp: {timestamp}') 
+                    print(f'Comm: {comm}, Src IP: {src_ip}, Dest IP: {dest_ip}, Src Port: {src_port}, Dest Port: {dest_port}, PID: {pid}, Func ID: {func_id}, Timestamp: {timestamp}') 
                     
                 except json.JSONDecodeError as e:
                     print(f"Error decoding JSON: {e} ; Skip {record.value}")

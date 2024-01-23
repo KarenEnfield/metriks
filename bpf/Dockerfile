@@ -45,7 +45,7 @@ COPY data_producer.py /app/data_producer.py
 COPY console_display.py /app/console_display.py
 # common ebpf event collection, used by both scripts
 COPY bpf_collector.c /app/bpf_collector.c
-COPY producer_settings.ini /app/producer_settings.ini
+COPY config.ini /app/config.ini
 # shell script to run the python data processing script (uses Kafka Producer)
 COPY dp.sh /app/run.sh
 RUN chmod +x /app/run.sh

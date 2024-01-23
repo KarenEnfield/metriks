@@ -2,29 +2,31 @@
 
 Data producer uses ebpf kernel probing and prints network data to console or sends data to Kafka for consumption
  
-## Installation (Default)
+## Installation Prerequisites (Data Streaming mode) 
 
-    - Prerequisites 
-    
-        Install and run Kafka and Zookeeper containers (See /kafka/Readme.md)
+    Install and run Kafka and Zookeeper in Docker 
+    (See Installation instructions in /kafka/Readme.md) 
 
-    - Build the MetriKs Data Producer Docker Image
+## Build the MetriKs Data Producer Docker Image
         
-        Go to the /bpf subfolder
+    From directory /bpf, Type:
+        docker build -t producer-image-mtk .
 
-        Build the data processor Docker image
+## Install and run the MetriKs Data Producer container
 
-            % docker build -t producer-image-mtk .
+    Start a data producer Docker container
+    docker run -it --rm --privileged \
+        -v /lib/modules:/lib/modules:ro \
+        -v /etc/localtime:/etc/localtime:ro \
+        --pid=host \
+        --name producer-mtk \
+        --link kafka-container \
+        producer-image-mtk
 
-    - Install and run the MetriKs Data Producer
-
-        Start a data producer Docker container
-            % docker run -it --rm --privileged -v /lib/modules:/lib/modules:ro -v /etc/localtime:/etc/localtime:ro --pid=host --name producer-mtk --link kafka-container producer-image-mtk 
-
-        Run the data producer python script
-            % ./run.sh
-            or 
-            % python3 data_producer.py
+    Run the data producer python script
+        % ./run.sh
+            or type the command
+        % python3 data_producer.py
 
         Alternatively, to run in Console mode/no kafka
             % python3 console_display.py    
