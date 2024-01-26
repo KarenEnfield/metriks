@@ -109,17 +109,21 @@ except Exception as e:
 TASK_COMM_LEN = 16  # Assuming the TASK_COMM_LEN value
 
 consumer.subscribe(kafka_config['topic'])
+ 
 
 # Set the desired time span
-start_time = None
-end_time = None
-span_seconds = tcp_event_config['span_in_seconds']
-time_span = timedelta(span_seconds)
+earliest_timestamp = float('inf')
+latest_timestamp = float(0)
+
+span_seconds = float(tcp_event_config['span_in_seconds'])
 
 # Variables to store the first and last timestamps found in the range
 first_timestamp_offset = None
 last_timestamp_offset = None
 last_partition = None
+last_offset = None
+last_topic = None
+
 process_set = set(tcp_event_config['process_names'])
 print(process_set)
 
@@ -133,15 +137,21 @@ edge_count = 0
 node_count_map = defaultdict(int)
 map_package_names = defaultdict(int)
 
-print(f"{time_span} sec span from: {kafka_config['topic']}")
+print(f"{span_seconds} sec span from: {kafka_config['topic']}")
 
 try :
     # Consume messages for span_seconds
+    start_time = time.time()
     while not exit_flag:
+
+        elapsed_time = time.time() - start_time
+        if elapsed_time>span_seconds:
+            exit_flag = True
+            break
 
         messages = consumer.poll(timeout_ms=500)  # Adjust the timeout as needed
         
-        # current_time = datetime.now()
+        
         # Iterate over edges and remove outdated ones
         #for u, v, data in list(G.edges(data=True)):
         #    timestamp = data.get('timestamp', None)
@@ -170,20 +180,21 @@ try :
                     continue
                 
                 # Extract the message timestamp
-                record_timestamp = datetime.utcfromtimestamp(record.timestamp / 1000)
-                
-                # Initialize start_time if not set
-                if start_time is None:
-                    start_time = record_timestamp
-                    end_time = start_time + time_span
+                earliest_timestamp = min(earliest_timestamp,record.timestamp)
+                latest_timestamp = max(latest_timestamp,record.timestamp)
 
-                # Is this out of the range
-                if record_timestamp > end_time:
+                # Is time elapsed
+                if (latest_timestamp-earliest_timestamp)/1000.0 >= span_seconds:
                     print("Current span load complete; write report")
                     exit_flag = True
                     break    
 
-                last_record_offset = record.offset
+                # Update the last processed offset
+                print("Offset-partition-topic")
+                last_offset = record.offset
+                last_partition = record.partition
+                last_topic = record.topic
+                print(f"{last_topic}-{last_partition}-{last_offset}")
                 
                 try:
                     
@@ -205,9 +216,9 @@ try :
                     timestamp_offset_ns = data.get('timeoffset_ns')
                     
                     if first_timestamp_offset is None:
-                        first_timestamp_offset = int(timestamp_offset_ns/1e6)
+                        first_timestamp_offset = int(timestamp_offset_ns/1e6)/1e3
 
-                    last_timestamp_offset = int(timestamp_offset_ns/1e6)
+                    last_timestamp_offset = int(timestamp_offset_ns/1e6)/1e3
 
                     # make sure time offset is a valid numeric value
                     if not isinstance(timestamp_offset_ns, (int)):
@@ -267,7 +278,8 @@ try :
                 except Exception as e:
                     print(f"Error processing data {e} ; Skip record : {record.value}")
                     continue
-        print('poll for more messages...')    
+            if exit_flag is True:      
+                break       
 
 except KeyboardInterrupt as e:
     print(f"<Keyboad interrupt detected>")
@@ -278,7 +290,17 @@ except Exception as err:
 finally:
 
     if (kafka_config['commit']):
-        consumer.commit({TopicPartition(kafka_config['topic'], topic_partition): last_record_offset})   
+        print("Commit")
+        if last_partition is None or last_offset is None or last_topic is None:
+            print("Nothing to commit")   
+        else:    
+            # Create a TopicPartition object and seek to the last processed offset + 1
+            tp = TopicPartition(last_topic, last_partition)
+            consumer.seek(tp,last_offset+1)
+            # Commit offsets
+            consumer.commit()
+
+
 
     # Create a layout for the graph
     pos = nx.circular_layout(G)  # You can use other layout algorithms
@@ -305,26 +327,12 @@ finally:
 
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, font_color='red', font_size=8)
     # Customize plot
-    # Create a figure with a larger canvas
     try:
-    # Your existing code to calculate mintime and maxtime
-    # ...
-        #pacific_time = timezone(timedelta(hours=-8))
-        #print(f"Converted timestamp: {mintime} && {maxtime}")
-        # Check if timestamps are within a reasonable range
-        #if 0 < mintime < 2**31 and 0 < maxtime < 2**31:
-        #    timestamp_datetime1 = datetime.fromtimestamp(end_timestamp_ns-span_ns, tz=pacific_time)
-        #    timestamp_datetime2 = datetime.fromtimestamp(end_timestamp_ns, tz=pacific_time)
-        #    timestamp_datetime1.strftime('%Y-%m-%d %H:%M:%S')
-        #    timestamp_datetime2.strftime('%Y-%m-%d %H:%M:%S')
-
-
-        title = f"Visualize TCP SocKets: {edge_count} TCP send/recv endpoints Span {span_seconds} secs T(0):+({first_timestamp_offset}-{last_timestamp_offset}) ms"
+        title = f"Visualize SocKets: {edge_count} TCP send/recv endpoints, {span_seconds} sec span:({first_timestamp_offset}-{last_timestamp_offset}) seconds offset"
         plt.title(title)
-        #else:
-        #    print(f"Invalid timestamp values.{mintime} : {maxtime}")
     except ValueError as e:
         print(f"Error: {e}")
+
     # plt.title(f"Visualize MetriKs: {edge_count} TCP send/recv endpoints (addr_port) ({datetime.fromtimestamp(mintime).strftime('%Y-%m-%d %H:%M:%S')}-{datetime.fromtimestamp(maxtime).strftime('%Y-%m-%d %H:%M:%S')})")
     plt.axis('off')
     plt.savefig('vision.png')

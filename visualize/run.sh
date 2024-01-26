@@ -16,5 +16,5 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Set the environment variable
-export MY_VARIABLE="$MY_VARIABLE"
+export MY_VARIABLE=$MY_VARIABLE
 python3 visualize.py
