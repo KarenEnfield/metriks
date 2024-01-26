@@ -32,7 +32,7 @@ struct event_data_t {
     u16 dest_port;
     u32 pid;
     u16 func_id;
-    u64 timestamp;
+    u64 timeoffset_ns; // nanosecond offset since last system boot
     char comm[TASK_COMM_LEN];
 };
 
@@ -63,7 +63,7 @@ int trace_tcp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
         .dest_port = bpf_ntohs(tcph->dest),
         .pid = bpf_get_current_pid_tgid(),
         .func_id = TCP_SENDMSG,
-        .timestamp = bpf_ktime_get_ns(),
+        .timeoffset_ns = bpf_ktime_get_ns(), 
     };  
     bpf_get_current_comm(&data.comm, sizeof(data.comm));
     
@@ -96,11 +96,11 @@ int trace_tcp_recvmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
         .dest_port = bpf_ntohs(tcph->dest),
         .pid = bpf_get_current_pid_tgid(),
         .func_id = TCP_RECVMSG,
-        .timestamp = bpf_ktime_get_ns(),
+        .timeoffset_ns = bpf_ktime_get_ns(),
     };  
 
     bpf_get_current_comm(&data.comm, sizeof(data.comm));
-
+    
     // Send the data to user space
     events.perf_submit(ctx, &data, sizeof(struct event_data_t));
 

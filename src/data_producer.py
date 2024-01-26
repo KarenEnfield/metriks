@@ -10,13 +10,16 @@ from kafka import __version__ as kafka_python_version
 import os
 import configparser
 
-
+#
+# Read Configuration file
+#
 def read_config(config_file='config.ini'):
     config = configparser.ConfigParser()
     config.read(config_file)
 
     kafka_config = {
         'bootstrap_servers': os.getenv('KAFKA_BOOTSTRAP_SERVERS', config.get('kafka', 'bootstrap_servers')),
+        'group_id' : os.getenv('KAFKA_GROUP_ID', config.get('kafka', 'group_id')),
         'topic': os.getenv('KAFKA_TOPIC', config.get('kafka', 'topic')),
         'acks': os.getenv('KAFKA_ACKS', config.get('kafka', 'acks')),
         'api_version': tuple(map(int, os.getenv('KAFKA_API_VERSION', config.get('kafka', 'api_version')).split(','))),
@@ -57,8 +60,11 @@ def read_config(config_file='config.ini'):
     if tcp_event_config.get('comm_filtering') is True :
         print(f"Comm Filter: {tcp_event_config.get('comm_filtering')} on Names: {tcp_event_config.get('process_names')}, Data Stream: {data_streaming_config.get('enabled')}")
 
-    return kafka_config, tcp_event_config, data_streaming_config
+    return kafka_config, tcp_event_config, data_streaming_config#
 
+#
+#  Setup Kafka producer for data transmission
+#
 def create_kafka_producer(kafka_config):
     producer_config = {
         'bootstrap_servers': kafka_config['bootstrap_servers'],
@@ -70,26 +76,29 @@ def create_kafka_producer(kafka_config):
     producer = KafkaProducer(**producer_config)
     return producer
 
-
-# Signal Interrupt handling- SIGINT (Ctrl-C)
+#
+# Create Signal Interrupt handling- SIGINT (Ctrl-C) to end collection
+#
 def sigint_handler(signal, frame):
     global exit_flag
     exit_flag = True
     print("\nSIGINT received! Exit")
     exit(1)
 
-# Set the SIGINT handler
+
+#
+# Begin Program Execution
+#
+        
+# Start the SIGINT handler
 signal.signal(signal.SIGINT, sigint_handler)
 
 #
-# Configuration setup from ini file/environment variables
-#
-# Read Kafka, TCP event, and data_streaming configuration from the config file
+# Get settings for Kafka, TCP event handling, and reporting from the config file
 kafka_config, tcp_event_config, data_streaming_config = read_config()
 
 # 
-# BPF Probe setup
-# 
+# BPF tcp event extraction, data transformation and loading into userspace 
 bpf_collector_c = 'bpf_collector.c'
 
 # Load BPF program
@@ -103,12 +112,10 @@ bpf.attach_kprobe(event="tcp_recvmsg", fn_name="trace_tcp_recvmsg")
 
 
 # Check environment variable determine if console output is desired 
-# instead of kafka sends for 
-# bpf event reporting. 
-# bpf.trace_print prevents bpf event poll handler from executing.
+# instead of kafka for data transmission 
 if data_streaming_config['enabled'] is False:
     print("Print to console.  Data streaming is off")
-    bpf.trace_print()
+    #bpf.trace_print() # bpf.trace_print prevents bpf event poll handler from executing.
    
 # Initialize Kafka producer
 try:
@@ -134,7 +141,7 @@ class EventData(Structure):
         ('dest_port', c_ushort),
         ('pid', c_uint),
         ('func_id', c_ushort),
-        ('timestamp', c_ulonglong),
+        ('timeoffset_ns', c_ulonglong),
         ('comm', c_char * TASK_COMM_LEN)  # Add the 'comm' field
     ]
 
@@ -145,26 +152,25 @@ def handle_event(cpu, event_data, size):
         return
 
     # Process bpf collector event from userspace 
-    e_data = cast(event_data, POINTER(EventData)).contents
-    comm_str = e_data.comm.decode('utf-8')
+    eventData = cast(event_data, POINTER(EventData)).contents
 
     # TBA Process name filtering ...
     # Serialize the entire event structure to JSON (for example)
     event_json = {
-        'src_ip': e_data.src_ip,
-        'dest_ip': e_data.dest_ip,
-        'src_port': e_data.src_port,
-        'dest_port': e_data.dest_port,
-        'pid': e_data.pid,
-        'func_id': e_data.func_id,
-        'timestamp': e_data.timestamp,
-        'comm' : comm_str,
+        'src_ip': eventData.src_ip,
+        'dest_ip': eventData.dest_ip,
+        'src_port': eventData.src_port,
+        'dest_port': eventData.dest_port,
+        'pid': eventData.pid,
+        'func_id': eventData.func_id,
+        'timeoffset_ns': eventData.timeoffset_ns,
+        'comm' : eventData.comm.decode('utf-8'),
         # Add other fields as needed
     }
 
     # see if event comm name is in list of process_name to filter for
-    if tcp_event_config['comm_filtering'] and comm_str not in tcp_event_config['process_names']:
-        print(f"{comm_str} not found in {tcp_event_config['process_names']}")# Produce a message to the specified topic
+    if tcp_event_config['comm_filtering'] and event_json.get('comm') not in tcp_event_config['process_names']:
+        print(f"{event_json.get('comm')} not found in {tcp_event_config['process_names']}") # Produce a trace message
         return
 
     # Convert the dictionary to a JSON string
