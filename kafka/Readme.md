@@ -14,10 +14,12 @@ Run Kafka and Zookeeper in Docker containers on your MacOS
         -e TZ=UTC \
         -p 9092:9092 \
         -e ZOOKEEPER_HOST=host.docker.internal \
-        -e ADVERTISED_LISTENERS=PLAINTEXT://kafka-container:9092,PLAINTEXT://localhost:9092 \
-        -e KAFKA_BROKER_ID=1 \
+        -e KAFKA_KAFKA_SERVER_PROPERTIES="broker.id=1"
         -e KAFKA_LOG_DIRS=/kafka-logs \
+        -e ADVERTISED_LISTENERS=PLAINTEXT://kafka-container:9092,PLAINTEXT://localhost:9092 \
         ubuntu/kafka:3.1-22.04_beta
+        
+        * you can change the broker id, number > 0
 
 ## Create topic tcp-events
     Type:
@@ -52,6 +54,8 @@ EOF"
     Read the events
         docker exec -it kafka-container kafka-console-consumer.sh --topic tcp-events --from-beginning --bootstrap-server localhost:9092 
 
+    Go to the console
+        docker exec -it kafka-container /bin/bash
 
 ## References: 
     https://hub.docker.com/r/ubuntu/kafka

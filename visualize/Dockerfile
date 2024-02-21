@@ -22,6 +22,8 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install kafka-python
 RUN pip3 install networkx 
 RUN pip3 install matplotlib
+RUN pip3 install pytz
+
 
 
 # Copy Python scripts

@@ -16,7 +16,7 @@ Data producer uses ebpf kernel probing and prints network data to console or sen
 
     Start a data producer Docker container
     docker run -it --rm --privileged \
-        -v /lib/modules:/lib/modules:ro \
+        -v /lib/modules:/lib/modules \
         -v /etc/localtime:/etc/localtime:ro \
         --pid=host \
         --name producer-mtk \
