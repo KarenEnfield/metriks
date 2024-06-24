@@ -15,13 +15,27 @@ Data producer uses ebpf kernel probing and prints network data to console or sen
 ## Install and run the MetriKs Data Producer container
 
     Start a data producer Docker container
+
+DO NOT do the recommended mounting of lib\modules:     
     docker run -it --rm --privileged \
-        -v /lib/modules:/lib/modules \
+        -v /lib/modules:/lib/modules:rw \
         -v /etc/localtime:/etc/localtime:ro \
         --pid=host \
         --name producer-mtk \
         --link kafka-container \
         producer-image-mtk
+
+DO THIS to overwrite the lib/modules and use a docker kernel lib module instead
+    docker run --rm -it \
+        --privileged \
+        --mount type=bind,source=/sys/fs/bpf,target=/sys/fs/bpf \
+        -v /etc/localtime:/etc/localtime:ro \
+        --pid=host \
+        --name producer-mtk \
+        --link kafka-container \
+        producer-image-mtk
+
+
 
     Run the data producer python script
         % ./run.sh

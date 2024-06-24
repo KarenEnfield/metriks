@@ -1,6 +1,6 @@
 
 # Use an official Python runtime as a parent image
-# FROM python:3.10
+#FROM python:3.11
 FROM ubuntu:latest
 
 # Set the working directory
@@ -14,16 +14,19 @@ ENV DISPLAY=host.docker.internal:0
 # ENV MPLBACKEND TkAgg
 
 RUN apt-get update && apt-get install -y \
-    python3 \
+    python3-full \
     python3-pip \
     python3-tk \
+    git \
     catimg 
- 
-RUN pip3 install kafka-python
-RUN pip3 install networkx 
-RUN pip3 install matplotlib
-RUN pip3 install pytz
 
+RUN python3 -m venv myenv
+# RUN source myenv/bin/activate
+RUN myenv/bin/pip3 install git+https://github.com/dpkp/kafka-python.git
+#RUN myenv/bin/pip3 install kafka-python
+RUN myenv/bin/pip3 install networkx 
+RUN myenv/bin/pip3 install matplotlib 
+RUN myenv/bin/pip3 install pytz 
 
 
 # Copy Python scripts

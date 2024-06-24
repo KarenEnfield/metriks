@@ -6,11 +6,6 @@
 
 #define TASK_COMM_LEN 16 // avoiding including linux/bpf.h
 
-enum {
-    TCP_SENDMSG =1 ,
-    TCP_RECVMSG
-} tcp_kernel;
-
 // avoiding linux/tcp.h which causes docker compilation problems
 struct tcphdr {
     __be16 source;
@@ -31,9 +26,9 @@ struct event_data_t {
     u16 src_port;
     u16 dest_port;
     u32 pid;
-    u16 func_id;
-    u64 timeoffset_ns; // nanosecond offset since last system boot
+    u64 timeoffset_ns; // nanosecond offset since last system boot   
     char comm[TASK_COMM_LEN];
+    char event_name[TASK_COMM_LEN];
 };
 
 // Define the output map for communication with user space
@@ -62,11 +57,15 @@ int trace_tcp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
         .src_port = bpf_ntohs(tcph->source),
         .dest_port = bpf_ntohs(tcph->dest),
         .pid = bpf_get_current_pid_tgid(),
-        .func_id = TCP_SENDMSG,
         .timeoffset_ns = bpf_ktime_get_ns(), 
     };  
+
+    // Copy comm name into event data
     bpf_get_current_comm(&data.comm, sizeof(data.comm));
     
+    // Copy event name to event data
+    bpf_probe_read_str(&data.event_name, sizeof(data.event_name), "tcp_sendmsg");
+
     // Send the data to user space
     events.perf_submit(ctx, &data, sizeof(struct event_data_t));
 
@@ -76,7 +75,7 @@ int trace_tcp_sendmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
 int trace_tcp_recvmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb) {
     struct iphdr *iph;
     struct tcphdr *tcph;
-
+    
     // Check if skb and sk are not NULL
     if (!skb || !sk) {
         return 0;
@@ -89,18 +88,22 @@ int trace_tcp_recvmsg(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb)
     bpf_trace_printk("tcp_recvmsg src %pI4 port=%d", &iph->saddr, bpf_ntohs(tcph->source));
     bpf_trace_printk("tcp_recvmsg dest %pI4 port=%d", &iph->daddr, bpf_ntohs(tcph->dest));
     
+    // Create event data to send to userspace
     struct event_data_t data = {
         .src_ip = iph->saddr,
         .dest_ip = iph->daddr,
         .src_port = bpf_ntohs(tcph->source),
         .dest_port = bpf_ntohs(tcph->dest),
         .pid = bpf_get_current_pid_tgid(),
-        .func_id = TCP_RECVMSG,
         .timeoffset_ns = bpf_ktime_get_ns(),
     };  
 
+    // Copy comm name into event data
     bpf_get_current_comm(&data.comm, sizeof(data.comm));
-    
+
+    // Copy event name to event data
+    bpf_probe_read_str(&data.event_name, sizeof(data.event_name), "tcp_recvmsg");
+
     // Send the data to user space
     events.perf_submit(ctx, &data, sizeof(struct event_data_t));
 

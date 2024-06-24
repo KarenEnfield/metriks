@@ -37,7 +37,7 @@ done
 
 # Run your Python script
 
-python3 visualize.py
+myenv/bin/python visualize.py
 
 # Unset the environment variables
 for key in "${!env_vars[@]}"; do

@@ -1,4 +1,5 @@
-#include <uapi/linux/ptrace.h>
+//#include <uapi/linux/ptrace.h>
+#include <linux/ptrace.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
 

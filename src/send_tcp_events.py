@@ -1,6 +1,8 @@
 # To start kafka now and restart at login:  brew services start kafka
 # Or, if you don't want/need a background service you can just run:
 # /opt/homebrew/opt/kafka/bin/kafka-server-start /opt/homebrew/etc/kafka/server.properties
+import sys
+print(sys.path)
 from bcc import BPF
 from kafka import KafkaProducer
 from ctypes import cast, Structure, POINTER, c_uint, c_ushort, c_ulonglong, c_char
@@ -11,9 +13,8 @@ import os
 import configparser
 import psutil
 import socket
-import struct
 import docker
-
+import struct
 
 #
 # Read Configuration file
@@ -63,7 +64,7 @@ def read_config(config_file='config.ini'):
     }    
  
     if tcp_event_config.get('comm_filtering') is True :
-        print(f"Comm Filter: {tcp_event_config.get('comm_filtering')} on Names: {tcp_event_config.get('process_names')}, Data Stream: {data_streaming_config.get('enabled')}")
+        print(f"Comm Filter: {tcp_event_config.get('comm_filtering')} on Names: {tcp_event_config.get('process_names')}, Data Stream: {tcp_event_config.get('enabled')}")
     if tcp_event_config.get('http_only') is True :
         print("HTTP sending ONLY")
 
@@ -116,9 +117,8 @@ def get_dns_name(dest_ip):
 
     except socket.herror as e:
         # Handle DNS resolution errors
-        print(f"Error dns name for {dest_ip}: {e}")
         d_name = f"{socket.inet_ntoa(struct.pack('!I', dest_ip))}" 
-        print(f"Error dns name for {dest_ip}: {e}, using {d_name}")
+        print(f"Error get dns name for {dest_ip}: {e}. Using {d_name} instead")
         return d_name
     
 def get_local_process_name(pid):
@@ -290,7 +290,7 @@ def handle_event(cpu, event_data, size):
             # map eventData.pid comm name
             pid_comm = get_local_process_name(eventData.pid)
             pid_metadata_map[eventData.pid] = pid_comm
-            pid_metadata_map[ppid] = ppid_comm
+            #pid_metadata_map[ppid] = ppid_comm
         else :    
             # get pid comm name
             pid_comm = pid_metadata_map[eventData.pid]   

@@ -141,6 +141,10 @@ H = nx.MultiDiGraph()
 kGraphMax = 25  # maximum edges to display
 edge_count = 0 
 multi_edge_count = 0
+tcp_flags = 0
+status_codes = 0
+contains_content = 0
+
 
 # Initialize a defaultdict with int as the default factory function
 node_count_map = defaultdict(int)
@@ -218,6 +222,9 @@ try :
                     tcomm = data.get('tcomm')
                     container_name = data.get('container_name')
                     dest_name = data.get('dest_name')
+                    flags = data.get("flags")
+                    status_code = data.get("status_code")
+                    content_type = data.get("content_type")
                     
                     
                     if first_timestamp_offset is None:
@@ -303,8 +310,19 @@ try :
                     else:
                         node_count_map[dest_id] = 1    
                     
+                    if (src_port>0 or dest_port>0) and event_id==2:
+                        print("***")
                     if src_port in exposed_ports_set or dest_port in exposed_ports_set:
                         print(f'Comm: {comm}, Src IP: {src_ip}, Dest IP: {dest_ip}, Src Port: {src_port}, Dest Port: {dest_port}, PID: {pid}, Func ID: {event_id}, Time offset: {timestamp_offset_ns}') 
+                    if flags>0 or status_code>=0 or content_type != "unknown":
+                        print(f'**Comm: {comm}, Src IP: {src_ip}, Dest IP: {dest_ip}, Src Port: {src_port}, Dest Port: {dest_port}, PID: {pid}, Func ID: {event_id}, Flags:{flags}, Status Code: {status_code}, Content Type: {content_type}, Time offset: {timestamp_offset_ns}') 
+                        if flags>0:
+                            tcp_flags+=1
+                        if status_code>=0:
+                            status_codes+=1
+                        if content_type!="unknown":
+                            contains_content+=1
+
 
                 except json.JSONDecodeError as e:
                     print(f"Error decoding JSON: {e} ; Skip {record.value}")
@@ -406,16 +424,20 @@ finally:
     # plt.show()
 
     # Convert earliest timestamp to datetime and format it
-    timestamp_datetime_utc = datetime.utcfromtimestamp(earliest_timestamp_ms / 1000.0)
+    if earliest_timestamp_ms == float('inf'):
+      print("No timestamps")
+    else:
+        timestamp_datetime_utc = datetime.fromtimestamp(earliest_timestamp_ms/1000.0,tz=timezone.utc)
+        #timestamp_datetime_utc = datetime.utcfromtimestamp(earliest_timestamp_ms / 1000.0)
     
-    # Set the local time zone
-    local_tz = pytz.timezone('America/Los_Angeles')  # Replace 'your_local_timezone' with your desired time zone
+        # Set the local time zone
+        local_tz = pytz.timezone('America/Los_Angeles')  # Replace 'your_local_timezone' with your desired time zone
 
-    # Convert UTC datetime to local time zone
-    timestamp_datetime_local = timestamp_datetime_utc.replace(tzinfo=pytz.utc).astimezone(local_tz)
+        # Convert UTC datetime to local time zone
+        timestamp_datetime_local = timestamp_datetime_utc.replace(tzinfo=pytz.utc).astimezone(local_tz)
         
-    formatted_timestamp = timestamp_datetime_local.strftime('%Y-%m-%d %H:%M:%S')
-    print(f"First Timestamp: {formatted_timestamp}")
+        formatted_timestamp = timestamp_datetime_local.strftime('%Y-%m-%d %H:%M:%S')
+        print(f"First Timestamp: {formatted_timestamp}")
 
 
     # Get the number of nodes and edges
@@ -425,6 +447,9 @@ finally:
     print(f"Number of nodes: {num_nodes}")
     print(f"Number of edges: {num_edges}")
     print(f"Number of multi-edges: {multi_edge_count}")
+    print(f"Number of tcp flags set: {tcp_flags}")
+    print(f"Number of http status codes: {status_codes}")
+    print(f"Number of tcp with content: {contains_content}")
     for pkg, pkg_count in map_package_names.items():
         print(f"{pkg}: {pkg_count}")
 

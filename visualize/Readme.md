@@ -12,4 +12,4 @@
         --pid=host \
         --name visualizer-mtk \
         --link kafka-container \
-        visualizer-image-mt
+        visualizer-image-mtk
