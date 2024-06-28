@@ -1,0 +1,22 @@
+#!/usr/bin/env bpftrace
+
+tracepoint:syscalls:sys_enter_recvmsg
+/PT_REGS_PARM1(ctx) == 200/ {
+    @http_codes["200 OK"]++;
+}
+
+tracepoint:syscalls:sys_enter_recvmsg
+/PT_REGS_PARM1(ctx) == 404/ {
+    @http_codes["404 Not Found"]++;
+}
+
+tracepoint:syscalls:sys_enter_recvmsg
+/PT_REGS_PARM1(ctx) == 500/ {
+    @http_codes["500 Internal Server Error"]++;
+}
+
+interval:s:10 {
+    printf("HTTP Codes:\n");
+    print(@http_codes);
+    clear(@http_codes);
+}
