@@ -9,7 +9,7 @@ kafka_broker = 'localhost:9092'
 producer_config = {
     'bootstrap_servers': kafka_broker,
     'acks': 'all',
-    'api_version': '0,11',
+    'api_version': (0,11),
     # Add more Kafka producer settings as needed
 }
 producer = KafkaProducer(**producer_config)

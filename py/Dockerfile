@@ -55,4 +55,4 @@ COPY metrics_collector.py /app/metrics_collector.py
 RUN dpkg-query -W -f='${Version}' linux-headers-generic | cut -d'.' -f1-3 > /app/docker_kernel_version.txt
 
 # Run the Python script
-CMD ["python3", "metrics_collector.py"]
+# CMD ["python3", "metrics_collector.py"]

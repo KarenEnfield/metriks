@@ -1,11 +1,13 @@
-#include <uapi/linux/ptrace.h>
+#include <linux/ptrace.h>
+#include <linux/skbuff.h>
 #include <linux/sched.h>
+
 
 BPF_PERF_OUTPUT(http_events);
 
-int trace_http_request(struct tracepoint__syscalls__sys_enter_sendto *args) {
+int trace_http_request(struct pt_regs *ctx, struct sock *sk, struct sk_buff *skb) {
     u32 pid = bpf_get_current_pid_tgid();
-    u64 msg_len = args->msg_len;
+    u64 msg_len = skb->len;
 
     // Filter HTTP traffic (adjust as needed)
     if (msg_len > 0) {
@@ -19,7 +21,7 @@ int trace_http_request(struct tracepoint__syscalls__sys_enter_sendto *args) {
         };
 
         // Output to user space
-        http_events.perf_submit(args, &data, sizeof(data));
+        http_events.perf_submit(ctx, &data, sizeof(data));
     }
 
     return 0;

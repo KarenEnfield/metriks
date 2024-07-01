@@ -19,3 +19,8 @@
 
 # Note: The --privileged flag is necessary for running eBPF programs as they require higher privileges to access kernel features.
 
+# Run these commands to point the kernel to the compatible docker jammy headers
+mkdir /lib/modules/6.6.31-linuxkit/
+chmod 777 /lib/modules/5.15.0-113-generic
+ln -s /lib/modules/5.15.0-113-generic/build /lib/modules/6.6.31-linuxkit/build
+python3 metrics_collector.py

@@ -1,28 +1,57 @@
-#include <uapi/linux/ptrace.h>
-#include <net/sock.h>
+#include <linux/ptrace.h>
+#include <linux/skbuff.h>
+#include <linux/sched.h>
+#include <linux/ip.h>
 
-BPF_PERF_OUTPUT(tcp_events);
-
-int trace_tcp_connect(struct pt_regs *ctx, struct sock *sk) {
-    u32 pid = bpf_get_current_pid_tgid();
-
-    // Retrieve source and destination IP addresses and ports
-    struct {
+struct tcphdr {
+    __be16 source;
+    __be16 dest;
+    __be32 seq;
+    __be32 ack_seq;
+    union {
+        struct {
+            __u16 res1:4;
+            __u16 doff:4;
+            __u16 fin:1;
+            __u16 syn:1;
+            __u16 rst:1;
+            __u16 psh:1;
+            __u16 ack:1;
+            __u16 urg:1;
+            __u16 ece:1;
+            __u16 cwr:1;
+        };
+        __u16 flags;
+    };
+    __be16 window;
+    __sum16 check;
+    __be16 urg_ptr;
+};
+struct tcpevent_t {
         u32 pid;
         u32 saddr;
         u32 daddr;
         u16 sport;
         u16 dport;
-    } data = {
+};
+
+BPF_PERF_OUTPUT(tcp_events);
+
+int trace_tcp_connect(struct pt_regs *ctx, struct sock *sk,  struct sk_buff *skb) {
+    u32 pid = bpf_get_current_pid_tgid();
+    struct tcphdr *tcph = (struct tcphdr *)(skb->data + skb->transport_header);
+    struct iphdr *iph = (struct iphdr *)(skb->data + skb->network_header);
+    // Retrieve source and destination IP addresses and ports
+    struct tcpevent_t data = {
         .pid = pid,
-        .saddr = sk->__sk_common.skc_rcv_saddr,
-        .daddr = sk->__sk_common.skc_daddr,
-        .sport = sk->__sk_common.skc_num,
-        .dport = sk->__sk_common.skc_dport,
+        .saddr = iph->saddr,
+        .daddr = iph->daddr,
+        .sport = bpf_ntohs(tcph->source),
+        .dport = bpf_ntohs(tcph->dest),
     };
 
     // Output to user space
-    tcp_events.perf_submit(ctx, &data, sizeof(data));
+    tcp_events.perf_submit(ctx, &data, sizeof(struct tcpevent_t));
 
     return 0;
 }
