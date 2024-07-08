@@ -21,11 +21,35 @@ Run Kafka and Zookeeper in Docker containers on your MacOS
         
         * you can change the broker id, number > 0
 
-## Create topic tcp-events
+## Create topic 'tcp-events'
     Type:
         docker exec kafka-container kafka-topics.sh \
         --create \
         --topic tcp-events \
+        --bootstrap-server localhost:9092 \
+        --partitions 1 \
+        --replication-factor 1
+
+# Create topic 'udp-events'
+    docker exec kafka-container kafka-topics.sh \
+        --create \
+        --topic udp-events \
+        --bootstrap-server localhost:9092 \
+        --partitions 1 \
+        --replication-factor 1
+
+# Create topic 'http-events'
+    docker exec kafka-container kafka-topics.sh \
+        --create \
+        --topic http-events \
+        --bootstrap-server localhost:9092 \
+        --partitions 1 \
+        --replication-factor 1
+
+# Create topic 'dns-events'
+    docker exec kafka-container kafka-topics.sh \
+        --create \
+        --topic dns-events \
         --bootstrap-server localhost:9092 \
         --partitions 1 \
         --replication-factor 1
